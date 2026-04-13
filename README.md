@@ -35,6 +35,37 @@ packages/
 pnpm install
 ```
 
+### MongoDB
+
+Install via Homebrew:
+
+```bash
+brew tap mongodb/brew
+brew install mongodb-community
+```
+
+Start MongoDB:
+
+```bash
+mongod --config /opt/homebrew/etc/mongod.conf &
+```
+
+The server connects to `mongodb://localhost:27017/health-portal` by default. Override with the `MONGO_URI` environment variable if needed.
+
+### Seed the Database
+
+```bash
+pnpm seed
+```
+
+This populates the database with sample data:
+
+- 5 patients (all with password `password123`)
+- 6 appointments (mix of one-time and recurring)
+- 7 prescriptions (mix of one-time and recurring refills)
+
+Running `pnpm seed` clears existing data before inserting, so it's safe to re-run.
+
 ### Run
 
 ```bash
