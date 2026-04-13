@@ -1,14 +1,5 @@
-export type ApiSuccessResponse<T> = {
-  success: true;
-  data: T;
-};
-
-export type ApiErrorResponse = {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-  };
-};
-
-export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+export * from "./api.js";
+export * from "./patient.js";
+export * from "./appointment.js";
+export * from "./prescription.js";
+export * from "./portal.js";
