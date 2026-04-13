@@ -23,24 +23,25 @@ export const SUMMARY_WINDOW_DAYS = 7;
 export const DETAIL_WINDOW_MONTHS = 3;
 
 export const MEDICATION_OPTIONS = [
-  "Lisinopril",
-  "Atorvastatin",
+  "Diovan",
+  "Lexapro",
   "Metformin",
-  "Amlodipine",
-  "Omeprazole",
-  "Losartan",
-  "Levothyroxine",
-  "Albuterol",
+  "Ozempic",
+  "Prozac",
+  "Seroquel",
+  "Tegretol",
 ] as const;
 
 export const DOSAGE_OPTIONS = [
+  "1mg",
+  "2mg",
+  "3mg",
   "5mg",
   "10mg",
-  "20mg",
   "25mg",
-  "40mg",
   "50mg",
   "100mg",
   "250mg",
   "500mg",
+  "1000mg",
 ] as const;
