@@ -1,0 +1,12 @@
+{
+  "name": "health-portal",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:web": "pnpm -F @health-portal/web dev",
+    "dev:server": "pnpm -F @health-portal/server dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
