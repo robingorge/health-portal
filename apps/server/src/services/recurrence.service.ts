@@ -54,6 +54,53 @@ function stepAppointmentDate(d: Date, freq: RecurrenceFrequency): Date {
   }
 }
 
+/** Fixed day-step for day-based frequencies; null for calendar-based (monthly). */
+function dayStepFor(freq: RecurrenceFrequency): number | null {
+  switch (freq) {
+    case "daily":
+      return 1;
+    case "weekly":
+      return 7;
+    case "biweekly":
+      return 14;
+    case "monthly":
+      return null;
+  }
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Advance `from` by k * stepDays so the result is the first occurrence
+ * >= target. O(1).
+ */
+function fastForwardDays(from: Date, target: Date, stepDays: number): Date {
+  if (from.getTime() >= target.getTime()) return from;
+  const diffMs = target.getTime() - from.getTime();
+  const stepMs = stepDays * MS_PER_DAY;
+  const k = Math.ceil(diffMs / stepMs);
+  return new Date(from.getTime() + k * stepMs);
+}
+
+/**
+ * Loop-based catch-up for monthly recurrences. Bounded much higher than the
+ * emit cap because it does no allocation and terminates in O(years * 12).
+ */
+const MAX_CATCHUP_ITERATIONS = 100_000;
+function fastForwardMonthly(from: Date, target: Date, effectiveEnd: Date): Date {
+  let current = from;
+  let iters = 0;
+  while (
+    current.getTime() < target.getTime() &&
+    current.getTime() <= effectiveEnd.getTime() &&
+    iters < MAX_CATCHUP_ITERATIONS
+  ) {
+    current = addMonths(current, 1);
+    iters += 1;
+  }
+  return current;
+}
+
 function toDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -94,10 +141,18 @@ export const recurrenceService = {
       const ruleEnd = appt.recurrence ? parseEndOfDayUtc(appt.recurrence.endDate) : null;
       const effectiveEnd = ruleEnd && ruleEnd < windowEnd ? ruleEnd : windowEnd;
 
+      // Fast-forward to the first occurrence in window so historical iterations
+      // don't consume the emit cap.
       let current = first;
-      let iterations = 0;
+      if (appt.recurrence && current.getTime() < windowStart.getTime()) {
+        const stepDays = dayStepFor(appt.recurrence.frequency);
+        current = stepDays !== null
+          ? fastForwardDays(current, windowStart, stepDays)
+          : fastForwardMonthly(current, windowStart, effectiveEnd);
+      }
 
-      while (current.getTime() <= effectiveEnd.getTime() && iterations < MAX_OCCURRENCES_PER_RULE) {
+      let emitted = 0;
+      while (current.getTime() <= effectiveEnd.getTime() && emitted < MAX_OCCURRENCES_PER_RULE) {
         if (current.getTime() >= windowStart.getTime()) {
           out.push({
             appointmentId: appt.id,
@@ -107,10 +162,10 @@ export const recurrenceService = {
             date: current.toISOString(),
             durationMinutes: appt.durationMinutes,
           });
+          emitted += 1;
         }
         if (!appt.recurrence) break;
         current = stepAppointmentDate(current, appt.recurrence.frequency);
-        iterations += 1;
       }
     }
 
@@ -131,16 +186,29 @@ export const recurrenceService = {
   ): RefillOccurrence[] {
     const out: RefillOccurrence[] = [];
 
+    // Refill dates are day-granular (YYYY-MM-DD, floored to UTC midnight).
+    // Floor the window start to the same granularity so a refill dated "today"
+    // is still considered in-window after midnight UTC.
+    const refillWindowStart = new Date(Date.UTC(
+      windowStart.getUTCFullYear(),
+      windowStart.getUTCMonth(),
+      windowStart.getUTCDate(),
+    ));
+
     for (const rx of prescriptions) {
       const first = parseStartOfDayUtc(rx.firstRefillDate);
       const ruleEnd = rx.refillSchedule ? parseEndOfDayUtc(rx.refillSchedule.endDate) : null;
       const effectiveEnd = ruleEnd && ruleEnd < windowEnd ? ruleEnd : windowEnd;
 
+      // Fast-forward past historical refills so they don't consume the emit cap.
       let current = first;
-      let iterations = 0;
+      if (rx.refillSchedule && current.getTime() < refillWindowStart.getTime()) {
+        current = fastForwardDays(current, refillWindowStart, rx.refillSchedule.frequencyDays);
+      }
 
-      while (current.getTime() <= effectiveEnd.getTime() && iterations < MAX_OCCURRENCES_PER_RULE) {
-        if (current.getTime() >= windowStart.getTime()) {
+      let emitted = 0;
+      while (current.getTime() <= effectiveEnd.getTime() && emitted < MAX_OCCURRENCES_PER_RULE) {
+        if (current.getTime() >= refillWindowStart.getTime()) {
           out.push({
             prescriptionId: rx.id,
             patientId: rx.patientId,
@@ -148,10 +216,10 @@ export const recurrenceService = {
             dosage: rx.dosage,
             date: toDateOnly(current),
           });
+          emitted += 1;
         }
         if (!rx.refillSchedule) break;
         current = addDays(current, rx.refillSchedule.frequencyDays);
-        iterations += 1;
       }
     }
 
