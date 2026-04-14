@@ -66,15 +66,6 @@ async function seed() {
       durationMinutes: 30,
       recurrence: { frequency: "monthly", endDate: RECURRENCE_END },
     },
-    // Mark — one-time lab work (null recurrence)
-    {
-      patientId: pid("Johnson"),
-      providerName: "Dr Kim West",
-      description: "Lab Work Review",
-      firstAppointment: new Date("2026-04-20T10:00:00.000-07:00"),
-      durationMinutes: 15,
-      recurrence: null,
-    },
     // Lisa — recurring monthly with Dr Sally Field
     {
       patientId: pid("Smith"),
@@ -92,15 +83,6 @@ async function seed() {
       firstAppointment: new Date("2026-04-25T20:00:00.000-07:00"),
       durationMinutes: 30,
       recurrence: { frequency: "weekly", endDate: RECURRENCE_END },
-    },
-    // Lisa — one-time specialist referral (null recurrence)
-    {
-      patientId: pid("Smith"),
-      providerName: "Dr Sally Field",
-      description: "Specialist Referral Consult",
-      firstAppointment: new Date("2026-04-28T14:00:00.000-07:00"),
-      durationMinutes: 45,
-      recurrence: null,
     },
   ]);
 
@@ -126,15 +108,6 @@ async function seed() {
       firstRefillDate: new Date("2026-04-10"),
       refillSchedule: { frequencyDays: 30, endDate: RECURRENCE_END },
     },
-    // Mark — Prozac 10mg, one-time (null refillSchedule)
-    {
-      patientId: pid("Johnson"),
-      medicationName: "Prozac",
-      dosage: "10mg",
-      quantity: 1,
-      firstRefillDate: new Date("2026-04-12"),
-      refillSchedule: null,
-    },
     // Lisa — Metformin 500mg, monthly refills
     {
       patientId: pid("Smith"),
@@ -152,15 +125,6 @@ async function seed() {
       quantity: 1,
       firstRefillDate: new Date("2026-04-25"),
       refillSchedule: { frequencyDays: 30, endDate: RECURRENCE_END },
-    },
-    // Lisa — Seroquel 25mg, one-time (null refillSchedule)
-    {
-      patientId: pid("Smith"),
-      medicationName: "Seroquel",
-      dosage: "25mg",
-      quantity: 1,
-      firstRefillDate: new Date("2026-04-18"),
-      refillSchedule: null,
     },
   ]);
 
