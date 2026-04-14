@@ -25,6 +25,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Optional callback fired on any NOT_AUTHENTICATED response. Registered once
+ * by the portal layout to clear the auth store + redirect to `/`, so every
+ * page gets consistent expired-session handling without per-call checks.
+ */
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 export const http: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   // Send hp_session cookie on every request (cookie-based auth).
@@ -48,6 +59,7 @@ http.interceptors.response.use(
     }
     const payload = response.data;
     if (payload && payload.success === false) {
+      if (payload.error.code === "NOT_AUTHENTICATED") onUnauthorized?.();
       return Promise.reject(new ApiError(payload.error.code, payload.error.message, response.status));
     }
     // Replace envelope with the unwrapped data for downstream `.data` access.
@@ -58,6 +70,7 @@ http.interceptors.response.use(
     const status = error.response?.status ?? 0;
     const data = error.response?.data;
     if (data && data.success === false) {
+      if (data.error.code === "NOT_AUTHENTICATED") onUnauthorized?.();
       return Promise.reject(new ApiError(data.error.code, data.error.message, status));
     }
     return Promise.reject(new ApiError("NETWORK_ERROR", error.message, status));
