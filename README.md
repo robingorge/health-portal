@@ -8,6 +8,9 @@ A full-stack mini-EMR and Patient Portal built with production-style architectur
 - **Backend:** Express 5 + TypeScript + Mongoose
 - **Database:** MongoDB
 - **Validation:** Zod
+- **Auth:** Session cookie + bcrypt password hashing
+- **Client state:** Zustand
+- **HTTP client:** axios
 - **Monorepo:** pnpm workspaces
 
 ## Project Structure
@@ -138,7 +141,42 @@ Health check: `GET /api/health`
 - Recurrence rules are stored once on the appointment/prescription document; occurrences are expanded on read in the portal service for the requested window (7 days or 3 months).
 - Shared DTOs and Zod schemas in `packages/shared` are consumed by both apps so the API contract is enforced at compile time.
 - Frontend uses a thin axios wrapper (`apps/web/src/lib/api/client.ts`) that unwraps the envelope, throws a typed `ApiError`, and fires a global `onUnauthorized` callback for expired sessions.
-- Auth state is held in a minimal Zustand store (`user`, `isAuthenticated`) and revalidated against `/auth/me` on every portal mount.
+- Auth state is held in a Zustand store driven by a `status` state machine (`idle | probing | authenticated | unauthenticated | error`). The store owns all async auth flows (`probe`, `login`, `logout`); components only read `status` and dispatch actions. `/auth/me` is re-probed on every portal mount.
+
+## Deployment
+
+The demo is deployed across three free-tier services:
+
+| Layer    | Provider       | Notes                                                          |
+| -------- | -------------- | -------------------------------------------------------------- |
+| Frontend | Vercel         | Root directory `apps/web`; builds from the monorepo root.      |
+| Backend  | Render         | Long-running Node process; free tier sleeps after 15 min idle. |
+| Database | MongoDB Atlas  | Free M0 cluster; seeded once via `pnpm seed:prod`.             |
+
+Key configuration:
+
+- The server sets `app.set("trust proxy", 1)` so Express sees the original protocol behind Render/Vercel's TLS termination.
+- In production, the session cookie is issued with `Secure` + `SameSite=None` so it survives the cross-origin hop between the Vercel frontend and Render backend.
+- `CORS_ORIGIN` on the backend is pinned to the Vercel **production alias** (stable across redeploys), not the per-deploy hashed URL.
+- Environment variables are provided via each provider's dashboard — `.env.production` is git-ignored and only used for local production-mode testing.
+
+Build commands (in provider dashboards):
+
+- **Render build:** `npm i -g pnpm@9.15.4 && pnpm install --prod=false && pnpm build:server`
+- **Render start:** `pnpm --filter @health-portal/server start`
+- **Vercel install:** `cd ../.. && pnpm install --prod=false`
+- **Vercel build:** `cd ../.. && pnpm build:web`
+
+## Known Limitations
+
+- **No rate limiting** on `/auth/login` — trivial to brute-force in its current form.
+- **Sessions are in-memory** on the server, so all users are logged out on restart and horizontal scaling would break auth. A real deployment would back sessions with Redis or a DB collection.
+- **Admin area has no authentication** — intentional per the spec (mini-EMR is meant to be an internal tool), but it means anyone who can reach the frontend can edit patient data.
+- **No automated tests** (unit, integration, or E2E). Coverage is currently manual.
+- **Recurrence is expanded on every read** rather than cached/materialized. Fine at this scale; would need rethinking for large datasets or long windows.
+- **Free-tier cold start** (~30s) on the first request after idle, due to Render's sleep policy.
+- **No observability** — no structured logging, metrics, or error reporting (Sentry, Datadog, etc.).
+- **Single-region deployment** — no read replicas, no CDN for API responses.
 
 ## Scripts Reference
 
