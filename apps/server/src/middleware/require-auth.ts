@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { authService } from "../services/auth.service.js";
+import { readSessionId } from "../utils/session-cookie.js";
 
 /**
  * Attach `patientId` to the Express `Request` so downstream handlers can
@@ -12,21 +13,14 @@ declare module "express" {
 }
 
 /**
- * Session-scoped auth middleware for the patient portal.
- *
- * Reads the session id from the `X-Session-Id` header and resolves it to a
- * patientId via the in-memory session store in `authService`. Responds with
- * 401 when no session is presented or the session is invalid/expired.
- *
- * Note: header-based sessions are a deliberate simplification of the
- * design doc's "session-based auth" — a cookie-based flow can replace the
- * header read here without touching any portal code.
+ * Session-scoped auth middleware for the patient portal. Resolves the
+ * session id (cookie first, `X-Session-Id` header fallback) to a patientId
+ * via `authService` and stamps it on the request. Responds 401 with the
+ * shared API envelope when no valid session is present.
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const header = req.headers["x-session-id"];
-    const sessionId = typeof header === "string" ? header.trim() : "";
-
+    const sessionId = readSessionId(req);
     if (!sessionId) {
       res.status(401).json({
         success: false,

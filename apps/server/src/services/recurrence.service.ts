@@ -90,10 +90,6 @@ function fastForwardDays(from: Date, target: Date, stepDays: number): Date {
 }
 
 /**
- * Loop-based catch-up for monthly recurrences. Bounded much higher than the
- * emit cap because it does no allocation and terminates in O(years * 12).
- */
-/**
  * Monthly fast-forward refinement bound. Does no allocation, terminates in
  * O(years * 12) even on absurd input.
  */
