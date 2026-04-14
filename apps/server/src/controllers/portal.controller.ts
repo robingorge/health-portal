@@ -1,39 +1,62 @@
 import type { Request, Response, NextFunction } from "express";
+import { portalService, PatientNotFoundError } from "../services/portal.service.js";
+
+/**
+ * The `requireAuth` middleware guarantees `req.patientId` is set before any
+ * portal handler runs; this helper narrows the type for the controller body.
+ */
+function sessionPatientId(req: Request): string {
+  // Safe: requireAuth rejects the request before this controller runs.
+  return req.patientId as string;
+}
+
+function handlePatientNotFound(err: unknown, res: Response, next: NextFunction): void {
+  if (err instanceof PatientNotFoundError) {
+    // The session references a patient that no longer exists — treat as
+    // auth failure rather than 404, since the client's session is stale.
+    res.status(401).json({
+      success: false,
+      error: { code: "NOT_AUTHENTICATED", message: "Session patient no longer exists" },
+    });
+    return;
+  }
+  next(err);
+}
 
 export const portalController = {
-  async summary(_req: Request, res: Response, next: NextFunction) {
+  async summary(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO: get patient from session, expand occurrences for next 7 days
-      res.status(501).json({ success: false, error: { code: "NOT_IMPLEMENTED", message: "Not implemented" } });
+      const data = await portalService.getSummary(sessionPatientId(req));
+      res.json({ success: true, data });
     } catch (err) {
-      next(err);
+      handlePatientNotFound(err, res, next);
     }
   },
 
-  async appointments(_req: Request, res: Response, next: NextFunction) {
+  async appointments(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO: get patient from session, expand appointment occurrences up to 3 months
-      res.status(501).json({ success: false, error: { code: "NOT_IMPLEMENTED", message: "Not implemented" } });
+      const data = await portalService.getAppointmentOccurrences(sessionPatientId(req));
+      res.json({ success: true, data });
     } catch (err) {
-      next(err);
+      handlePatientNotFound(err, res, next);
     }
   },
 
-  async prescriptions(_req: Request, res: Response, next: NextFunction) {
+  async prescriptions(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO: get patient from session, return full prescription records
-      res.status(501).json({ success: false, error: { code: "NOT_IMPLEMENTED", message: "Not implemented" } });
+      const data = await portalService.getPrescriptions(sessionPatientId(req));
+      res.json({ success: true, data });
     } catch (err) {
-      next(err);
+      handlePatientNotFound(err, res, next);
     }
   },
 
-  async refills(_req: Request, res: Response, next: NextFunction) {
+  async refills(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO: get patient from session, expand refill dates up to 3 months
-      res.status(501).json({ success: false, error: { code: "NOT_IMPLEMENTED", message: "Not implemented" } });
+      const data = await portalService.getRefillOccurrences(sessionPatientId(req));
+      res.json({ success: true, data });
     } catch (err) {
-      next(err);
+      handlePatientNotFound(err, res, next);
     }
   },
 };
