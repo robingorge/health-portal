@@ -6,6 +6,14 @@ import { Prescription } from "./models/prescription.model.js";
 const RECURRENCE_END = new Date("2027-04-16");
 
 async function seed() {
+  // Seed wipes every patient / appointment / prescription. Guard against
+  // pointing it at a production database by accident — opt in explicitly
+  // with ALLOW_PROD_SEED=1 for the (rare) case you really mean it.
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "1") {
+    console.error("Refusing to seed: NODE_ENV=production. Set ALLOW_PROD_SEED=1 to override.");
+    process.exit(1);
+  }
+
   await connectDatabase();
 
   await Promise.all([

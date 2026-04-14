@@ -5,6 +5,10 @@ import { errorHandler } from "./middleware/error-handler.js";
 
 const app: Express = express();
 
+// Render/Vercel/most PaaS terminate TLS at a reverse proxy. Trusting the first
+// hop lets Express see the real protocol so `Secure` cookies are issued.
+app.set("trust proxy", 1);
+
 // Cookie-based auth requires credentialed CORS: the browser will refuse to
 // send/accept `hp_session` on cross-origin requests unless both the server
 // allows credentials AND the `Access-Control-Allow-Origin` header echoes a

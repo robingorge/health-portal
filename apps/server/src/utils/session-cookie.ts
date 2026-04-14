@@ -13,9 +13,15 @@ export const SESSION_COOKIE_NAME = "hp_session";
 /** 7 days. Keep in sync with the session TTL in authService. */
 export const SESSION_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+const IS_PROD = process.env.NODE_ENV === "production";
+
+// In production the frontend (Vercel) and backend (Render) live on different
+// eTLD+1 domains, so the session cookie must be SameSite=None; Secure to be
+// sent cross-origin. Locally we stay on Lax over http://localhost.
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
-  sameSite: "lax" as const,
+  sameSite: (IS_PROD ? "none" : "lax") as "none" | "lax",
+  secure: IS_PROD,
   path: "/",
   maxAge: SESSION_COOKIE_MAX_AGE_MS,
 };
