@@ -134,7 +134,7 @@ export default function PatientDetailPage() {
       </div>
 
       <section className="rounded-xl border border-[#101f15]/10 bg-white p-6">
-        <div className="mb-4 flex items-start justify-between">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-[#101f15]">
               {patient.firstName} {patient.lastName}
@@ -154,7 +154,7 @@ export default function PatientDetailPage() {
       </section>
 
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#101f15]">Appointments</h2>
           <button className={primaryBtnClass} onClick={() => setCreatingAppt(true)}>New appointment</button>
         </div>
@@ -165,7 +165,7 @@ export default function PatientDetailPage() {
         ) : (
           <ul className="space-y-2">
             {appointments.map((a) => (
-              <li key={a.id} className="flex items-start justify-between rounded-md border border-[#101f15]/10 bg-white p-4">
+              <li key={a.id} className="flex flex-col items-start justify-between gap-3 rounded-md border border-[#101f15]/10 bg-white p-4 sm:flex-row sm:items-center">
                 <div>
                   <p className="text-sm font-medium text-[#101f15]">{a.description}</p>
                   <p className="text-xs text-[#101f15]/60">
@@ -188,7 +188,7 @@ export default function PatientDetailPage() {
       </section>
 
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#101f15]">Prescriptions</h2>
           <button className={primaryBtnClass} onClick={() => setCreatingRx(true)}>New prescription</button>
         </div>
