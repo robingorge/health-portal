@@ -5,6 +5,9 @@ import { createPrescriptionSchema, updatePrescriptionSchema } from "@health-port
 
 const router: IRouter = Router();
 
+// GET    /api/prescriptions/options — medication + dosage dropdown choices
+router.get("/options", prescriptionController.getOptions);
+
 // POST   /api/prescriptions
 router.post("/", validate(createPrescriptionSchema), prescriptionController.create);
 
