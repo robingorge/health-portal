@@ -57,7 +57,9 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
           router.replace("/");
           return;
         }
-        setProbeError(err instanceof Error ? err.message : "Failed to load your session.");
+        setProbeError(
+          err instanceof Error ? err.message : "Failed to load your session.",
+        );
       });
     return () => {
       cancelled = true;
@@ -101,8 +103,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-[#edfeee]">
       <header className="border-b border-[#101f15]/10 bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Link href="/portal" className="text-base font-semibold text-[#101f15] sm:text-lg">
-            VitalityCare
+          <Link
+            href="/portal"
+            className="text-base font-semibold text-[#101f15] sm:text-lg"
+          >
+            HealthPortal
           </Link>
           <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             {NAV.map((item) => {
@@ -134,7 +139,9 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+        {children}
+      </main>
     </div>
   );
 }

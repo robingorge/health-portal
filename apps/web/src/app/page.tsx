@@ -69,12 +69,19 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#edfeee] px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-bold tracking-tight text-[#101f15]">VitalityCare</h1>
-        <p className="mb-6 text-sm text-[#101f15]/60">Sign in to your patient portal.</p>
+        <h1 className="mb-1 text-2xl font-bold tracking-tight text-[#101f15]">
+          HealthPortal
+        </h1>
+        <p className="mb-6 text-sm text-[#101f15]/60">
+          Sign in to your patient portal.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[#101f15]">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-[#101f15]"
+            >
               Email
             </label>
             <input
@@ -89,7 +96,10 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-[#101f15]">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-[#101f15]"
+            >
               Password
             </label>
             <input
