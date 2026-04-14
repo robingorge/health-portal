@@ -29,6 +29,7 @@ export function PrescriptionForm(props: Props) {
   const initial = mode === "edit" ? props.initial : undefined;
 
   const [options, setOptions] = useState<PrescriptionOptions | null>(null);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [medicationName, setMedicationName] = useState(initial?.medicationName ?? "");
   const [dosage, setDosage] = useState(initial?.dosage ?? "");
   const [quantity, setQuantity] = useState(initial?.quantity ?? 30);
@@ -51,8 +52,12 @@ export function PrescriptionForm(props: Props) {
           setDosage((prev) => prev || o.dosages[0] || "");
         }
       })
-      .catch(() => {
-        // Options are non-critical — the form still works with blank inputs.
+      .catch((err) => {
+        setOptionsError(
+          err instanceof Error
+            ? err.message
+            : "Couldn't load medication options. Please close this form and try again.",
+        );
       });
   }, [initial]);
 
@@ -85,13 +90,32 @@ export function PrescriptionForm(props: Props) {
     }
   }
 
+  if (optionsError) {
+    return (
+      <div className="space-y-4">
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {optionsError}
+        </div>
+        <div className="flex justify-end">
+          <button type="button" className={secondaryBtnClass} onClick={onCancel}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!options) {
+    return <p className="text-sm text-[#101f15]/60">Loading options…</p>;
+  }
+
   return (
     <form onSubmit={handle} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelClass}>Medication</label>
           <select className={inputClass} value={medicationName} onChange={(e) => setMedicationName(e.target.value)} required>
-            {options?.medications.map((m) => (
+            {options.medications.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>
@@ -99,7 +123,7 @@ export function PrescriptionForm(props: Props) {
         <div>
           <label className={labelClass}>Dosage</label>
           <select className={inputClass} value={dosage} onChange={(e) => setDosage(e.target.value)} required>
-            {options?.dosages.map((d) => (
+            {options.dosages.map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>

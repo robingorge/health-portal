@@ -40,6 +40,7 @@ export default function PatientDetailPage() {
   const [editingAppt, setEditingAppt] = useState<AppointmentDto | null>(null);
   const [creatingRx, setCreatingRx] = useState(false);
   const [editingRx, setEditingRx] = useState<PrescriptionDto | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -89,8 +90,13 @@ export default function PatientDetailPage() {
 
   async function removeAppt(appt: AppointmentDto) {
     if (!confirm(`Delete appointment "${appt.description}"?`)) return;
-    await appointmentApi.remove(appt.id);
-    await load();
+    setActionError(null);
+    try {
+      await appointmentApi.remove(appt.id);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete appointment.");
+    }
   }
 
   async function createRx(data: CreatePrescriptionDto) {
@@ -108,8 +114,13 @@ export default function PatientDetailPage() {
 
   async function removeRx(rx: PrescriptionDto) {
     if (!confirm(`Delete prescription "${rx.medicationName}"?`)) return;
-    await prescriptionApi.remove(rx.id);
-    await load();
+    setActionError(null);
+    try {
+      await prescriptionApi.remove(rx.id);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete prescription.");
+    }
   }
 
   if (error) {
@@ -133,8 +144,14 @@ export default function PatientDetailPage() {
         <Link href="/admin" className="text-sm text-[#101f15]/60 hover:underline">← Back</Link>
       </div>
 
+      {actionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
       <section className="rounded-xl border border-[#101f15]/10 bg-white p-6">
-        <div className="mb-4 flex items-start justify-between">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-[#101f15]">
               {patient.firstName} {patient.lastName}
@@ -154,7 +171,7 @@ export default function PatientDetailPage() {
       </section>
 
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#101f15]">Appointments</h2>
           <button className={primaryBtnClass} onClick={() => setCreatingAppt(true)}>New appointment</button>
         </div>
@@ -165,7 +182,7 @@ export default function PatientDetailPage() {
         ) : (
           <ul className="space-y-2">
             {appointments.map((a) => (
-              <li key={a.id} className="flex items-start justify-between rounded-md border border-[#101f15]/10 bg-white p-4">
+              <li key={a.id} className="flex flex-col items-start justify-between gap-3 rounded-md border border-[#101f15]/10 bg-white p-4 sm:flex-row sm:items-center">
                 <div>
                   <p className="text-sm font-medium text-[#101f15]">{a.description}</p>
                   <p className="text-xs text-[#101f15]/60">
@@ -188,7 +205,7 @@ export default function PatientDetailPage() {
       </section>
 
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#101f15]">Prescriptions</h2>
           <button className={primaryBtnClass} onClick={() => setCreatingRx(true)}>New prescription</button>
         </div>

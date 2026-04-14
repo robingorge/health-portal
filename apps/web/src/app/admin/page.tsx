@@ -42,7 +42,7 @@ export default function AdminPatientsPage() {
 
   return (
     <section>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-[#101f15]">Patients</h1>
         <button className={primaryBtnClass} onClick={() => setCreating(true)}>
           New patient
@@ -66,7 +66,7 @@ export default function AdminPatientsPage() {
       )}
 
       {patients && patients.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-[#101f15]/10 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-[#101f15]/10 bg-white">
           <table className="min-w-full text-sm">
             <thead className="bg-[#101f15]/5 text-left text-xs uppercase tracking-wide text-[#101f15]/60">
               <tr>

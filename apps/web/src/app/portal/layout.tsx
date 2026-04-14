@@ -100,11 +100,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#edfeee]">
       <header className="border-b border-[#101f15]/10 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/portal" className="text-lg font-semibold text-[#101f15]">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <Link href="/portal" className="text-base font-semibold text-[#101f15] sm:text-lg">
             VitalityCare
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             {NAV.map((item) => {
               const active = pathname === item.href;
               return (
@@ -121,8 +121,8 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                 </Link>
               );
             })}
-            <span className="mx-2 h-5 w-px bg-[#101f15]/10" />
-            <span className="text-[#101f15]/60">
+            <span className="mx-2 hidden h-5 w-px bg-[#101f15]/10 sm:block" />
+            <span className="hidden text-[#101f15]/60 sm:inline">
               {user.firstName} {user.lastName}
             </span>
             <button
@@ -134,7 +134,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

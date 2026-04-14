@@ -6,8 +6,8 @@ export const authApi = {
     return api.post<PatientDto>("/auth/login", { email, password });
   },
 
-  logout(): Promise<null> {
-    return api.post<null>("/auth/logout");
+  logout(): Promise<void> {
+    return api.post<void>("/auth/logout");
   },
 
   me(): Promise<PatientDto> {
