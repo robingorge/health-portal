@@ -1,5 +1,7 @@
+import { Types } from "mongoose";
 import type { PatientDto } from "@health-portal/shared";
 import { Patient, type IPatient } from "../models/patient.model.js";
+import { DuplicateEmailError, isDuplicateKeyError } from "../utils/errors.js";
 
 function toDto(doc: IPatient): PatientDto {
   return {
@@ -22,6 +24,7 @@ export const patientRepository = {
   },
 
   async findById(id: string): Promise<PatientDto | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
     const doc = await Patient.findById(id).lean<IPatient | null>();
     return doc ? toDto(doc) : null;
   },
@@ -40,16 +43,23 @@ export const patientRepository = {
     bloodType: string;
     passwordHash: string;
   }): Promise<PatientDto> {
-    const doc = await Patient.create({
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone,
-      dateOfBirth: new Date(data.dateOfBirth),
-      bloodType: data.bloodType,
-      passwordHash: data.passwordHash,
-    });
-    return toDto(doc);
+    try {
+      const doc = await Patient.create({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        dateOfBirth: new Date(data.dateOfBirth),
+        bloodType: data.bloodType,
+        passwordHash: data.passwordHash,
+      });
+      return toDto(doc);
+    } catch (err) {
+      if (isDuplicateKeyError(err)) {
+        throw new DuplicateEmailError(data.email);
+      }
+      throw err;
+    }
   },
 
   async update(
@@ -64,6 +74,7 @@ export const patientRepository = {
       passwordHash?: string;
     },
   ): Promise<PatientDto | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
     const update: Record<string, unknown> = {};
     if (data.firstName !== undefined) update.firstName = data.firstName;
     if (data.lastName !== undefined) update.lastName = data.lastName;
@@ -73,7 +84,14 @@ export const patientRepository = {
     if (data.bloodType !== undefined) update.bloodType = data.bloodType;
     if (data.passwordHash !== undefined) update.passwordHash = data.passwordHash;
 
-    const doc = await Patient.findByIdAndUpdate(id, update, { new: true }).lean<IPatient | null>();
-    return doc ? toDto(doc) : null;
+    try {
+      const doc = await Patient.findByIdAndUpdate(id, update, { new: true }).lean<IPatient | null>();
+      return doc ? toDto(doc) : null;
+    } catch (err) {
+      if (isDuplicateKeyError(err)) {
+        throw new DuplicateEmailError(data.email ?? "");
+      }
+      throw err;
+    }
   },
 };

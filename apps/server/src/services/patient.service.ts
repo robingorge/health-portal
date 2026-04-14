@@ -1,13 +1,9 @@
 import type { CreatePatientDto, UpdatePatientDto, PatientDto } from "@health-portal/shared";
 import { patientRepository } from "../repositories/patient.repository.js";
 import { hashPassword } from "../models/patient.model.js";
+import { DuplicateEmailError } from "../utils/errors.js";
 
-export class DuplicateEmailError extends Error {
-  constructor(email: string) {
-    super(`A patient with email "${email}" already exists`);
-    this.name = "DuplicateEmailError";
-  }
-}
+export { DuplicateEmailError };
 
 export const patientService = {
   async getAll(): Promise<PatientDto[]> {
