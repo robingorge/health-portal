@@ -5,6 +5,13 @@ export class DuplicateEmailError extends Error {
   }
 }
 
+export class PatientNotFoundError extends Error {
+  constructor(patientId: string) {
+    super(`Patient "${patientId}" not found`);
+    this.name = "PatientNotFoundError";
+  }
+}
+
 /**
  * Detects MongoDB duplicate-key errors (E11000). These can surface as
  * `MongoServerError` at runtime even when Mongoose wraps the call, so we
