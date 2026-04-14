@@ -38,7 +38,7 @@ export const patientService = {
 
     if (data.email) {
       const existing = await patientRepository.findByEmail(data.email);
-      if (existing && existing.id !== id) {
+      if (existing && existing.id !== current.id) {
         throw new DuplicateEmailError(data.email);
       }
     }
