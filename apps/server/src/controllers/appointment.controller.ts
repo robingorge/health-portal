@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { appointmentService } from "../services/appointment.service.js";
+import { appointmentService, PatientNotFoundError } from "../services/appointment.service.js";
 import { getParam } from "../utils/params.js";
 
 export const appointmentController = {
@@ -8,6 +8,10 @@ export const appointmentController = {
       const appointment = await appointmentService.create(req.body);
       res.status(201).json({ success: true, data: appointment });
     } catch (err) {
+      if (err instanceof PatientNotFoundError) {
+        res.status(404).json({ success: false, error: { code: "PATIENT_NOT_FOUND", message: err.message } });
+        return;
+      }
       next(err);
     }
   },
