@@ -2,49 +2,33 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
 export default function LoginPage() {
   const router = useRouter();
-  const setUser = useAuthStore((s) => s.setUser);
+  const { status, probe, login } = useAuthStore();
 
-  // `checking` covers the initial `authApi.me()` probe so we don't flash the
-  // login form for users who already have a live session.
-  const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Re-use the store's probe so a user with a live session skips the form.
   useEffect(() => {
-    let cancelled = false;
-    authApi
-      .me()
-      .then((patient) => {
-        if (cancelled) return;
-        setUser(patient);
-        router.replace("/portal");
-      })
-      .catch(() => {
-        // No valid session — stay on the login form.
-      })
-      .finally(() => {
-        if (!cancelled) setChecking(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [router, setUser]);
+    probe();
+  }, [probe]);
+
+  useEffect(() => {
+    if (status === "authenticated") router.replace("/portal");
+  }, [status, router]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      const patient = await authApi.login(email, password);
-      setUser(patient);
+      await login(email, password);
       router.replace("/portal");
     } catch (err) {
       if (err instanceof ApiError && err.code === "INVALID_CREDENTIALS") {
@@ -58,7 +42,11 @@ export default function LoginPage() {
     }
   }
 
-  if (checking) {
+  // Show the loading shell until the store reaches a definitive
+  // "unauthenticated" state. Covers the initial probe AND the window between
+  // a successful login (status flips to "authenticated") and the router
+  // finishing the redirect to /portal — without this, the form flashes.
+  if (status !== "unauthenticated" && status !== "error") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#edfeee]">
         <p className="text-sm text-[#101f15]/60">Loading…</p>
