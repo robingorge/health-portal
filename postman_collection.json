@@ -1,0 +1,338 @@
+{
+  "info": {
+    "name": "Health Portal API",
+    "description": "All backend endpoints for the health-portal monorepo. Admin routes (/api/patients, /api/appointments, /api/prescriptions) are unauthenticated. Portal routes (/api/portal/*) require a session cookie set by POST /api/auth/login. Postman handles the cookie automatically; you can also supply an `X-Session-Id` header as a fallback.\n\nUsage:\n1. Set collection variable `baseUrl` (default http://localhost:4000).\n2. Run `Auth / Login` first to populate the session cookie.\n3. Run `Patients / Create` — patientId is captured into a collection variable and reused by dependent requests.\n4. Same for Appointments and Prescriptions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "patientId", "value": "" },
+    { "key": "appointmentId", "value": "" },
+    { "key": "prescriptionId", "value": "" },
+    { "key": "loginEmail", "value": "jane.doe@example.com" },
+    { "key": "loginPassword", "value": "password123" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /api/auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Postman stores cookies automatically. If you also want the raw",
+                  "// session id (for X-Session-Id header use), uncomment below:",
+                  "// const cookie = pm.cookies.get('hp_session');",
+                  "// if (cookie) pm.collectionVariables.set('sessionId', cookie);",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{loginEmail}}\",\n  \"password\": \"{{loginPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "GET /api/auth/me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          }
+        },
+        {
+          "name": "POST /api/auth/logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patients (admin)",
+      "item": [
+        {
+          "name": "GET /api/patients",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
+          }
+        },
+        {
+          "name": "POST /api/patients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body && body.success && body.data && body.data.id) {",
+                  "  pm.collectionVariables.set('patientId', body.data.id);",
+                  "}",
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"email\": \"{{loginEmail}}\",\n  \"phone\": \"+1-555-0100\",\n  \"dateOfBirth\": \"1990-05-14\",\n  \"bloodType\": \"O+\",\n  \"password\": \"{{loginPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
+          }
+        },
+        {
+          "name": "GET /api/patients/:id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/patients/{{patientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "patients", "{{patientId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/patients/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+1-555-0199\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/patients/{{patientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "patients", "{{patientId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/patients/:id/appointments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/patients/{{patientId}}/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "patients", "{{patientId}}", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/patients/:id/prescriptions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/patients/{{patientId}}/prescriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "patients", "{{patientId}}", "prescriptions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments (admin)",
+      "item": [
+        {
+          "name": "POST /api/appointments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body && body.success && body.data && body.data.id) {",
+                  "  pm.collectionVariables.set('appointmentId', body.data.id);",
+                  "}",
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"providerName\": \"Dr. Smith\",\n  \"description\": \"Annual checkup\",\n  \"firstAppointment\": \"2026-05-01T14:00:00.000Z\",\n  \"durationMinutes\": 30,\n  \"recurrence\": { \"frequency\": \"monthly\", \"endDate\": \"2026-12-31\" }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/appointments", "host": ["{{baseUrl}}"], "path": ["api", "appointments"] }
+          }
+        },
+        {
+          "name": "PUT /api/appointments/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Annual checkup (rescheduled)\",\n  \"durationMinutes\": 45\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "{{appointmentId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/appointments/:id",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "{{appointmentId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prescriptions (admin)",
+      "item": [
+        {
+          "name": "GET /api/prescriptions/options",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/prescriptions/options",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prescriptions", "options"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/prescriptions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body && body.success && body.data && body.data.id) {",
+                  "  pm.collectionVariables.set('prescriptionId', body.data.id);",
+                  "}",
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"medicationName\": \"Lisinopril\",\n  \"dosage\": \"10mg\",\n  \"quantity\": 30,\n  \"firstRefillDate\": \"2026-05-01\",\n  \"refillSchedule\": { \"frequencyDays\": 30, \"endDate\": \"2026-12-31\" }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/prescriptions", "host": ["{{baseUrl}}"], "path": ["api", "prescriptions"] }
+          }
+        },
+        {
+          "name": "PUT /api/prescriptions/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 60\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prescriptions/{{prescriptionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prescriptions", "{{prescriptionId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/prescriptions/:id",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/prescriptions/{{prescriptionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prescriptions", "{{prescriptionId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Portal (auth required)",
+      "description": "All requests require a valid session cookie — run `Auth / Login` first.",
+      "item": [
+        {
+          "name": "GET /api/portal/summary",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/portal/summary", "host": ["{{baseUrl}}"], "path": ["api", "portal", "summary"] }
+          }
+        },
+        {
+          "name": "GET /api/portal/appointments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/portal/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "portal", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/portal/prescriptions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/portal/prescriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "portal", "prescriptions"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/portal/prescriptions/refills",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/portal/prescriptions/refills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "portal", "prescriptions", "refills"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

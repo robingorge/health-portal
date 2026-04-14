@@ -31,7 +31,15 @@ export function readCookie(header: string | undefined, name: string): string | n
     if (eq === -1) continue;
     const key = part.slice(0, eq).trim();
     if (key === name) {
-      return decodeURIComponent(part.slice(eq + 1).trim());
+      const raw = part.slice(eq + 1).trim();
+      // A malformed percent-escape (e.g. `%E0%A4%A`) throws URIError.
+      // Treat that as "no valid cookie" so auth flows respond with 401
+      // rather than bubbling a 500 through the global error handler.
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        return null;
+      }
     }
   }
   return null;
