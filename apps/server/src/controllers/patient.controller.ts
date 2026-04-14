@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { patientService, DuplicateEmailError } from "../services/patient.service.js";
 import { prescriptionService } from "../services/prescription.service.js";
+import { appointmentService } from "../services/appointment.service.js";
 import { getParam } from "../utils/params.js";
 
 export const patientController = {
@@ -58,8 +59,12 @@ export const patientController = {
 
   async getAppointments(req: Request, res: Response, next: NextFunction) {
     try {
-      // Intentionally unimplemented — appointment service not yet built
-      res.status(501).json({ success: false, error: { code: "NOT_IMPLEMENTED", message: "Appointment listing not yet implemented" } });
+      const appointments = await appointmentService.getByPatientId(getParam(req.params.id));
+      if (appointments === null) {
+        res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Patient not found" } });
+        return;
+      }
+      res.json({ success: true, data: appointments });
     } catch (err) {
       next(err);
     }
