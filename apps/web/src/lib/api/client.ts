@@ -40,7 +40,12 @@ export const http: AxiosInstance = axios.create({
  */
 http.interceptors.response.use(
   (response: AxiosResponse<ApiResponse<unknown>>) => {
-    if (response.status === 204) return response;
+    // 204 No Content — axios defaults `data` to "" here; normalize to
+    // undefined so `api.delete()` honors its `Promise<void>` contract.
+    if (response.status === 204) {
+      (response as AxiosResponse<unknown>).data = undefined;
+      return response;
+    }
     const payload = response.data;
     if (payload && payload.success === false) {
       return Promise.reject(new ApiError(payload.error.code, payload.error.message, response.status));
