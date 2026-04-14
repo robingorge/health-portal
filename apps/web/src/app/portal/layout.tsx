@@ -17,16 +17,15 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, isAuthenticated, setUser, clearUser } = useAuthStore();
 
-  // `ready` blocks render until we've either confirmed a session (via the
-  // store or a `me()` probe) or redirected to the login page. Prevents a
-  // flash of portal chrome for unauthenticated visitors who land directly.
+  // Optimistic render: if the store already has a user we unblock the UI
+  // immediately, but we ALWAYS revalidate with `me()` below. The Zustand
+  // flag lives in memory and can outlive the server-side session (expired
+  // cookie, logged-out-in-another-tab, server restart) — trusting it
+  // without a probe would leave the portal accessible while every data
+  // call 401s.
   const [ready, setReady] = useState(isAuthenticated);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      setReady(true);
-      return;
-    }
     let cancelled = false;
     authApi
       .me()
@@ -36,12 +35,14 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
         setReady(true);
       })
       .catch(() => {
-        if (!cancelled) router.replace("/");
+        if (cancelled) return;
+        clearUser();
+        router.replace("/");
       });
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, router, setUser]);
+  }, [router, setUser, clearUser]);
 
   async function handleLogout() {
     try {
