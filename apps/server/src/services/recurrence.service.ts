@@ -41,16 +41,23 @@ function addMonths(d: Date, months: number): Date {
   return new Date(Date.UTC(targetYear, targetMonth, clampedDay, hours, minutes, seconds, ms));
 }
 
-function stepAppointmentDate(d: Date, freq: RecurrenceFrequency): Date {
+/**
+ * The n-th occurrence of a recurrence, computed relative to the original
+ * anchor date. Monthly recurrences MUST use this (not iterative stepping)
+ * to preserve the original day-of-month: Jan 31 + 1mo => Feb 28,
+ * Jan 31 + 2mo => Mar 31 (not Mar 28, which is what chaining through the
+ * clamped Feb 28 would produce).
+ */
+function occurrenceAt(anchor: Date, freq: RecurrenceFrequency, n: number): Date {
   switch (freq) {
     case "daily":
-      return addDays(d, 1);
+      return addDays(anchor, n);
     case "weekly":
-      return addDays(d, 7);
+      return addDays(anchor, n * 7);
     case "biweekly":
-      return addDays(d, 14);
+      return addDays(anchor, n * 14);
     case "monthly":
-      return addMonths(d, 1);
+      return addMonths(anchor, n);
   }
 }
 
@@ -86,19 +93,37 @@ function fastForwardDays(from: Date, target: Date, stepDays: number): Date {
  * Loop-based catch-up for monthly recurrences. Bounded much higher than the
  * emit cap because it does no allocation and terminates in O(years * 12).
  */
+/**
+ * Monthly fast-forward refinement bound. Does no allocation, terminates in
+ * O(years * 12) even on absurd input.
+ */
 const MAX_CATCHUP_ITERATIONS = 100_000;
-function fastForwardMonthly(from: Date, target: Date, effectiveEnd: Date): Date {
-  let current = from;
+
+/**
+ * Find the smallest n such that `occurrenceAt(anchor, "monthly", n)` lands
+ * on or after `target`. Uses a coarse approximation (calendar-month diff)
+ * then refines, so it's O(1) in practice even for decade-old anchors.
+ */
+function firstMonthlyIndexAtOrAfter(anchor: Date, target: Date): number {
+  const monthDiff =
+    (target.getUTCFullYear() - anchor.getUTCFullYear()) * 12 +
+    (target.getUTCMonth() - anchor.getUTCMonth());
+  let n = Math.max(0, monthDiff);
   let iters = 0;
+  // Refine forward if clamping made the candidate land before target.
   while (
-    current.getTime() < target.getTime() &&
-    current.getTime() <= effectiveEnd.getTime() &&
+    occurrenceAt(anchor, "monthly", n).getTime() < target.getTime() &&
     iters < MAX_CATCHUP_ITERATIONS
   ) {
-    current = addMonths(current, 1);
+    n += 1;
     iters += 1;
   }
-  return current;
+  // Refine backward if our approximation overshot (shouldn't happen after
+  // Math.max(0, ...), but guards against unexpected edge cases).
+  while (n > 0 && occurrenceAt(anchor, "monthly", n - 1).getTime() >= target.getTime()) {
+    n -= 1;
+  }
+  return n;
 }
 
 function toDateOnly(d: Date): string {
@@ -141,18 +166,43 @@ export const recurrenceService = {
       const ruleEnd = appt.recurrence ? parseEndOfDayUtc(appt.recurrence.endDate) : null;
       const effectiveEnd = ruleEnd && ruleEnd < windowEnd ? ruleEnd : windowEnd;
 
-      // Fast-forward to the first occurrence in window so historical iterations
-      // don't consume the emit cap.
-      let current = first;
-      if (appt.recurrence && current.getTime() < windowStart.getTime()) {
-        const stepDays = dayStepFor(appt.recurrence.frequency);
-        current = stepDays !== null
-          ? fastForwardDays(current, windowStart, stepDays)
-          : fastForwardMonthly(current, windowStart, effectiveEnd);
+      // Non-recurring: single candidate, emit iff in window.
+      if (!appt.recurrence) {
+        if (first.getTime() >= windowStart.getTime() && first.getTime() <= effectiveEnd.getTime()) {
+          out.push({
+            appointmentId: appt.id,
+            patientId: appt.patientId,
+            providerName: appt.providerName,
+            description: appt.description,
+            date: first.toISOString(),
+            durationMinutes: appt.durationMinutes,
+          });
+        }
+        continue;
+      }
+
+      // All occurrences are computed from the original anchor (`first`) via
+      // `occurrenceAt`. This preserves the original day-of-month across
+      // monthly expansions — chaining through clamped dates (Jan 31 → Feb 28
+      // → Mar 28) would drift and is NOT used here.
+      const freq = appt.recurrence.frequency;
+
+      // Find the first index `n` whose occurrence lands in-window.
+      let n = 0;
+      if (first.getTime() < windowStart.getTime()) {
+        const stepDays = dayStepFor(freq);
+        if (stepDays !== null) {
+          const diffMs = windowStart.getTime() - first.getTime();
+          n = Math.ceil(diffMs / (stepDays * MS_PER_DAY));
+        } else {
+          n = firstMonthlyIndexAtOrAfter(first, windowStart);
+        }
       }
 
       let emitted = 0;
-      while (current.getTime() <= effectiveEnd.getTime() && emitted < MAX_OCCURRENCES_PER_RULE) {
+      while (emitted < MAX_OCCURRENCES_PER_RULE) {
+        const current = occurrenceAt(first, freq, n);
+        if (current.getTime() > effectiveEnd.getTime()) break;
         if (current.getTime() >= windowStart.getTime()) {
           out.push({
             appointmentId: appt.id,
@@ -164,8 +214,7 @@ export const recurrenceService = {
           });
           emitted += 1;
         }
-        if (!appt.recurrence) break;
-        current = stepAppointmentDate(current, appt.recurrence.frequency);
+        n += 1;
       }
     }
 
