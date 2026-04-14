@@ -3,10 +3,13 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "predev": "pnpm -F @health-portal/shared build",
     "dev": "pnpm --parallel -r dev",
-    "dev:web": "pnpm -F @health-portal/web dev",
-    "dev:server": "pnpm -F @health-portal/server dev",
-    "build": "pnpm -r build",
+    "dev:web": "pnpm -F @health-portal/shared build && pnpm -F @health-portal/web dev",
+    "dev:server": "pnpm -F @health-portal/shared build && pnpm -F @health-portal/server dev",
+    "build": "pnpm -F @health-portal/shared build && pnpm -F @health-portal/server build && pnpm -F @health-portal/web build",
+    "build:server": "pnpm -F @health-portal/shared build && pnpm -F @health-portal/server build",
+    "build:web": "pnpm -F @health-portal/shared build && pnpm -F @health-portal/web build",
     "typecheck": "pnpm -r typecheck",
     "seed": "pnpm -F @health-portal/server seed"
   }
