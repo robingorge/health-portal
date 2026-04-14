@@ -10,7 +10,7 @@ function toDto(doc: IPatient): PatientDto {
     lastName: doc.lastName,
     email: doc.email,
     phone: doc.phone,
-    dateOfBirth: doc.dateOfBirth.toISOString(),
+    dateOfBirth: doc.dateOfBirth.toISOString().slice(0, 10),
     bloodType: doc.bloodType,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
