@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { authApi } from "@/lib/api/auth";
-import { setOnUnauthorized } from "@/lib/api/client";
+import { ApiError, setOnUnauthorized } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
 const NAV = [
@@ -25,6 +25,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   // without a probe would leave the portal accessible while every data
   // call 401s.
   const [ready, setReady] = useState(isAuthenticated);
+  const [probeError, setProbeError] = useState<string | null>(null);
 
   // Central handler: any request that 401s (NOT_AUTHENTICATED) anywhere in
   // the portal tears down auth state and kicks back to /. Fires once per
@@ -46,10 +47,17 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
         setUser(patient);
         setReady(true);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        clearUser();
-        router.replace("/");
+        // Only real auth failures should bounce to login. Network errors,
+        // timeouts, and 5xxs should surface as a retryable error so a brief
+        // outage doesn't force an unnecessary re-login.
+        if (err instanceof ApiError && err.code === "NOT_AUTHENTICATED") {
+          clearUser();
+          router.replace("/");
+          return;
+        }
+        setProbeError(err instanceof Error ? err.message : "Failed to load your session.");
       });
     return () => {
       cancelled = true;
@@ -63,6 +71,22 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
       clearUser();
       router.replace("/");
     }
+  }
+
+  if (probeError && !user) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#edfeee] px-4">
+        <div className="max-w-sm rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {probeError}
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-md border border-[#101f15]/15 bg-white px-3 py-1.5 text-sm font-medium text-[#101f15] hover:bg-[#101f15]/5"
+        >
+          Retry
+        </button>
+      </main>
+    );
   }
 
   if (!ready || !user) {
