@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Health Portal API",
-    "description": "All backend endpoints for the health-portal monorepo. Admin routes (/api/patients, /api/appointments, /api/prescriptions) are unauthenticated. Portal routes (/api/portal/*) require a session cookie set by POST /api/auth/login. Postman handles the cookie automatically; you can also supply an `X-Session-Id` header as a fallback.\n\nUsage:\n1. Set collection variable `baseUrl` (default http://localhost:4000).\n2. Run `Auth / Login` first to populate the session cookie.\n3. Run `Patients / Create` — patientId is captured into a collection variable and reused by dependent requests.\n4. Same for Appointments and Prescriptions.",
+    "description": "All backend endpoints for the health-portal monorepo.\n\n- Admin routes (`/api/patients`, `/api/appointments`, `/api/prescriptions`) are **unauthenticated**.\n- Portal routes (`/api/portal/*`) require a session cookie set by `POST /api/auth/login`.\n\nPostman's cookie jar handles `hp_session` automatically. An `X-Session-Id` header fallback is supported server-side if you prefer header-based auth.\n\n**Happy-path run order** (folder is provided at the bottom):\n1. `Auth / Register (POST /api/patients)`\n2. `Auth / Login`\n3. `Auth / Me`\n4. `Appointments / Create`\n5. `Prescriptions / Create`\n6. `Portal / *` (summary, appointments, prescriptions, refills)\n7. `Auth / Logout`\n8. `Negative / Portal without session` (should 401)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -18,6 +18,22 @@
       "item": [
         {
           "name": "GET /api/health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('envelope ok', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "  pm.expect(b.data.status).to.equal('ok');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
@@ -36,11 +52,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Postman stores cookies automatically. If you also want the raw",
-                  "// session id (for X-Session-Id header use), uncomment below:",
-                  "// const cookie = pm.cookies.get('hp_session');",
-                  "// if (cookie) pm.collectionVariables.set('sessionId', cookie);",
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('patient returned', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "  pm.expect(b.data.email).to.equal(pm.collectionVariables.get('loginEmail'));",
+                  "});",
+                  "pm.test('hp_session cookie set', () => {",
+                  "  pm.expect(pm.cookies.has('hp_session')).to.equal(true);",
+                  "});"
                 ]
               }
             }
@@ -57,6 +77,22 @@
         },
         {
           "name": "GET /api/auth/me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('patient data', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "  pm.expect(b.data.email).to.equal(pm.collectionVariables.get('loginEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
@@ -64,6 +100,21 @@
         },
         {
           "name": "POST /api/auth/logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('envelope', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
@@ -76,24 +127,45 @@
       "item": [
         {
           "name": "GET /api/patients",
-          "request": {
-            "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
-          }
-        },
-        {
-          "name": "POST /api/patients",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const body = pm.response.json();",
-                  "if (body && body.success && body.data && body.data.id) {",
-                  "  pm.collectionVariables.set('patientId', body.data.id);",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('array', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "  pm.expect(Array.isArray(b.data)).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
+          }
+        },
+        {
+          "name": "POST /api/patients (register)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b && b.success && b.data && b.data.id) {",
+                  "  pm.collectionVariables.set('patientId', b.data.id);",
                   "}",
-                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('patient created', () => {",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "  pm.expect(b.data.id).to.be.a('string');",
+                  "  pm.expect(b.data.email).to.equal(pm.collectionVariables.get('loginEmail'));",
+                  "});"
                 ]
               }
             }
@@ -110,6 +182,17 @@
         },
         {
           "name": "GET /api/patients/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -121,6 +204,21 @@
         },
         {
           "name": "PUT /api/patients/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('phone updated', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.data.phone).to.equal('+1-555-0199');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -170,9 +268,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const body = pm.response.json();",
-                  "if (body && body.success && body.data && body.data.id) {",
-                  "  pm.collectionVariables.set('appointmentId', body.data.id);",
+                  "const b = pm.response.json();",
+                  "if (b && b.success && b.data && b.data.id) {",
+                  "  pm.collectionVariables.set('appointmentId', b.data.id);",
                   "}",
                   "pm.test('status 201', () => pm.response.to.have.status(201));"
                 ]
@@ -191,6 +289,17 @@
         },
         {
           "name": "PUT /api/appointments/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -207,6 +316,17 @@
         },
         {
           "name": "DELETE /api/appointments/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "DELETE",
             "url": {
@@ -223,6 +343,23 @@
       "item": [
         {
           "name": "GET /api/prescriptions/options",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('options shape', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "  pm.expect(Array.isArray(b.data.medications)).to.equal(true);",
+                  "  pm.expect(Array.isArray(b.data.dosages)).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -240,9 +377,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const body = pm.response.json();",
-                  "if (body && body.success && body.data && body.data.id) {",
-                  "  pm.collectionVariables.set('prescriptionId', body.data.id);",
+                  "const b = pm.response.json();",
+                  "if (b && b.success && b.data && b.data.id) {",
+                  "  pm.collectionVariables.set('prescriptionId', b.data.id);",
                   "}",
                   "pm.test('status 201', () => pm.response.to.have.status(201));"
                 ]
@@ -261,6 +398,17 @@
         },
         {
           "name": "PUT /api/prescriptions/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -277,6 +425,17 @@
         },
         {
           "name": "DELETE /api/prescriptions/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "DELETE",
             "url": {
@@ -290,10 +449,28 @@
     },
     {
       "name": "Portal (auth required)",
-      "description": "All requests require a valid session cookie — run `Auth / Login` first.",
+      "description": "All requests require a valid session cookie. Run `Auth / POST /api/auth/login` first.",
       "item": [
         {
           "name": "GET /api/portal/summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('summary shape', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(true);",
+                  "  pm.expect(b.data.patient).to.be.an('object');",
+                  "  pm.expect(Array.isArray(b.data.upcomingAppointments)).to.equal(true);",
+                  "  pm.expect(Array.isArray(b.data.upcomingRefills)).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": { "raw": "{{baseUrl}}/api/portal/summary", "host": ["{{baseUrl}}"], "path": ["api", "portal", "summary"] }
@@ -301,6 +478,21 @@
         },
         {
           "name": "GET /api/portal/appointments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('array', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(Array.isArray(b.data)).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -312,6 +504,17 @@
         },
         {
           "name": "GET /api/portal/prescriptions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -323,6 +526,17 @@
         },
         {
           "name": "GET /api/portal/prescriptions/refills",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -330,6 +544,181 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "portal", "prescriptions", "refills"]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Negative tests",
+      "description": "Error-path checks — run after the happy path.",
+      "item": [
+        {
+          "name": "Portal without session → 401",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Clear cookies for baseUrl so this request is truly unauthenticated.",
+                  "const url = pm.collectionVariables.get('baseUrl');",
+                  "const jar = pm.cookies.jar();",
+                  "jar.clear(url, () => {});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('NOT_AUTHENTICATED envelope', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.success).to.equal(false);",
+                  "  pm.expect(b.error.code).to.equal('NOT_AUTHENTICATED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/portal/summary", "host": ["{{baseUrl}}"], "path": ["api", "portal", "summary"] }
+          }
+        },
+        {
+          "name": "Login with wrong password → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('INVALID_CREDENTIALS envelope', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.equal('INVALID_CREDENTIALS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{loginEmail}}\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Duplicate patient email → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('DUPLICATE_EMAIL envelope', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.equal('DUPLICATE_EMAIL');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Dup\",\n  \"lastName\": \"User\",\n  \"email\": \"{{loginEmail}}\",\n  \"phone\": \"+1-555-0101\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"bloodType\": \"A+\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
+          }
+        },
+        {
+          "name": "Create patient — validation error → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('VALIDATION_ERROR envelope', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.equal('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"\",\n  \"email\": \"not-an-email\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
+          }
+        },
+        {
+          "name": "Get patient — not found → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('NOT_FOUND envelope', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.equal('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/patients/000000000000000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "patients", "000000000000000000000000"]
+            }
+          }
+        },
+        {
+          "name": "Create appointment — missing patient → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('PATIENT_NOT_FOUND envelope', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.error.code).to.equal('PATIENT_NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"000000000000000000000000\",\n  \"providerName\": \"Dr. X\",\n  \"description\": \"Ghost\",\n  \"firstAppointment\": \"2026-05-01T14:00:00.000Z\",\n  \"durationMinutes\": 30\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/appointments", "host": ["{{baseUrl}}"], "path": ["api", "appointments"] }
           }
         }
       ]
