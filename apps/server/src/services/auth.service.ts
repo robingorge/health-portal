@@ -1,43 +1,74 @@
 import { randomBytes } from "node:crypto";
+import bcrypt from "bcrypt";
 import type { PatientDto } from "@health-portal/shared";
 import { patientRepository } from "../repositories/patient.repository.js";
 
 /**
- * Lightweight in-memory session store: sessionId -> patientId.
+ * In-memory session store: sessionId -> { patientId, expiresAt }.
  *
- * This is intentionally simple for the current phase. A production
- * deployment would swap this for a signed cookie + persistent store
- * (Redis, Mongo TTL collection, etc.) without changing the interface
- * consumed by `requireAuth` and the portal controller.
+ * The interface (`createSession`, `getSession`, `destroySession`) matches
+ * what a Redis / Mongo TTL-backed store would expose, so the store can be
+ * swapped without touching middleware or controllers. Sessions are lost on
+ * process restart — acceptable for this phase; a persistent store is the
+ * natural follow-up.
  */
-const sessions = new Map<string, string>();
+type SessionRecord = {
+  patientId: string;
+  expiresAt: number;
+};
+
+const sessions = new Map<string, SessionRecord>();
+
+/** 7 days. Keep in sync with SESSION_COOKIE_MAX_AGE_MS. */
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function newSessionId(): string {
+  return randomBytes(32).toString("hex");
+}
+
+export type LoginResult = {
+  patient: PatientDto;
+  sessionId: string;
+};
 
 export const authService = {
   /**
-   * Password verification and credential lookup are not yet implemented.
-   * The controller wires this up and returns 401 when it resolves to null.
+   * Verify credentials against the stored bcrypt hash and, on success,
+   * mint a new session. Returns null on any failure (unknown email OR
+   * wrong password) — the controller maps that to a generic 401 so we
+   * don't leak which half was wrong.
    */
-  async login(_email: string, _password: string): Promise<PatientDto | null> {
-    throw new Error("Not implemented");
+  async login(email: string, password: string): Promise<LoginResult | null> {
+    const auth = await patientRepository.findAuthByEmail(email);
+    if (!auth) return null;
+
+    const ok = await bcrypt.compare(password, auth.passwordHash);
+    if (!ok) return null;
+
+    const patient = await patientRepository.findById(auth.id);
+    if (!patient) return null; // raced with delete
+
+    const sessionId = newSessionId();
+    sessions.set(sessionId, {
+      patientId: auth.id,
+      expiresAt: Date.now() + SESSION_TTL_MS,
+    });
+    return { patient, sessionId };
   },
 
   /**
-   * Issue a new opaque session id for the given patient. Returned to the
-   * client by the (future) login handler; clients echo it back on each
-   * portal request via the `X-Session-Id` header.
-   */
-  createSession(patientId: string): string {
-    const sessionId = randomBytes(32).toString("hex");
-    sessions.set(sessionId, patientId);
-    return sessionId;
-  },
-
-  /**
-   * Sync lookup used by the `requireAuth` middleware on every request.
-   * Returns the patientId bound to the session, or null if unknown.
+   * Sync lookup used by `requireAuth` on every request. Returns the
+   * patientId bound to the session or null (unknown or expired). Expired
+   * entries are deleted lazily.
    */
   getSession(sessionId: string): string | null {
-    return sessions.get(sessionId) ?? null;
+    const record = sessions.get(sessionId);
+    if (!record) return null;
+    if (record.expiresAt < Date.now()) {
+      sessions.delete(sessionId);
+      return null;
+    }
+    return record.patientId;
   },
 
   destroySession(sessionId: string): void {
@@ -45,12 +76,10 @@ export const authService = {
   },
 
   /**
-   * Resolve a session directly to the patient DTO. Kept async-returning
-   * because it does a DB lookup; callers that only need the id should use
-   * `getSession` to avoid the round-trip.
+   * Resolve a session directly to the patient DTO. Used by GET /api/auth/me.
    */
   async getPatientBySession(sessionId: string): Promise<PatientDto | null> {
-    const patientId = sessions.get(sessionId);
+    const patientId = authService.getSession(sessionId);
     if (!patientId) return null;
     return patientRepository.findById(patientId);
   },

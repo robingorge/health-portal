@@ -43,14 +43,8 @@ export const patientService = {
       }
     }
 
-    const updateData: Record<string, unknown> = { ...data };
-    delete updateData.password;
-
-    if (data.password) {
-      (updateData as { passwordHash: string }).passwordHash = await hashPassword(data.password);
-    }
-
-    return patientRepository.update(id, updateData as {
+    const { password, ...rest } = data;
+    const updateData: {
       firstName?: string;
       lastName?: string;
       email?: string;
@@ -58,6 +52,12 @@ export const patientService = {
       dateOfBirth?: string;
       bloodType?: string;
       passwordHash?: string;
-    });
+    } = { ...rest };
+
+    if (password) {
+      updateData.passwordHash = await hashPassword(password);
+    }
+
+    return patientRepository.update(id, updateData);
   },
 };

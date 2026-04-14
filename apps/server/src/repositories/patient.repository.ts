@@ -34,6 +34,17 @@ export const patientRepository = {
     return doc ? toDto(doc) : null;
   },
 
+  /**
+   * Credential-lookup variant. Returns only the patient id and passwordHash so
+   * the hash never leaves this file via the normal DTO path. For use by the
+   * auth service when verifying login.
+   */
+  async findAuthByEmail(email: string): Promise<{ id: string; passwordHash: string } | null> {
+    const doc = await Patient.findOne({ email: email.toLowerCase() }).lean<IPatient | null>();
+    if (!doc) return null;
+    return { id: doc._id.toString(), passwordHash: doc.passwordHash };
+  },
+
   async create(data: {
     firstName: string;
     lastName: string;
