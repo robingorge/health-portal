@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { authApi } from "@/lib/api/auth";
+import { setOnUnauthorized } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
 const NAV = [
@@ -24,6 +25,17 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   // without a probe would leave the portal accessible while every data
   // call 401s.
   const [ready, setReady] = useState(isAuthenticated);
+
+  // Central handler: any request that 401s (NOT_AUTHENTICATED) anywhere in
+  // the portal tears down auth state and kicks back to /. Fires once per
+  // expired session regardless of which page triggered the call.
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      clearUser();
+      router.replace("/");
+    });
+    return () => setOnUnauthorized(null);
+  }, [clearUser, router]);
 
   useEffect(() => {
     let cancelled = false;
