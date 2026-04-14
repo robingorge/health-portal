@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
-import { authApi } from "@/lib/api/auth";
-import { ApiError, setOnUnauthorized } from "@/lib/api/client";
+import { useEffect, type ReactNode } from "react";
+import { setOnUnauthorized } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
 const NAV = [
@@ -16,73 +15,38 @@ const NAV = [
 export default function PortalLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, setUser, clearUser } = useAuthStore();
+  const { user, status, error, probe, logout, clearUser } = useAuthStore();
 
-  // Optimistic render: if the store already has a user we unblock the UI
-  // immediately, but we ALWAYS revalidate with `me()` below. The Zustand
-  // flag lives in memory and can outlive the server-side session (expired
-  // cookie, logged-out-in-another-tab, server restart) — trusting it
-  // without a probe would leave the portal accessible while every data
-  // call 401s.
-  const [ready, setReady] = useState(isAuthenticated);
-  const [probeError, setProbeError] = useState<string | null>(null);
-
-  // Central handler: any request that 401s (NOT_AUTHENTICATED) anywhere in
-  // the portal tears down auth state and kicks back to /. Fires once per
-  // expired session regardless of which page triggered the call.
+  // Kick off the session probe on mount and register a global 401 handler.
+  // Any async auth logic lives in the store; the layout only reacts to state.
   useEffect(() => {
-    setOnUnauthorized(() => {
-      clearUser();
-      router.replace("/");
-    });
+    setOnUnauthorized(() => useAuthStore.getState().clearUser());
+    probe();
     return () => setOnUnauthorized(null);
-  }, [clearUser, router]);
+  }, [probe]);
 
+  // React to the store's verdict: once the probe (or any later 401) flips
+  // status to "unauthenticated", bounce to the login page.
   useEffect(() => {
-    let cancelled = false;
-    authApi
-      .me()
-      .then((patient) => {
-        if (cancelled) return;
-        setUser(patient);
-        setReady(true);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        // Only real auth failures should bounce to login. Network errors,
-        // timeouts, and 5xxs should surface as a retryable error so a brief
-        // outage doesn't force an unnecessary re-login.
-        if (err instanceof ApiError && err.code === "NOT_AUTHENTICATED") {
-          clearUser();
-          router.replace("/");
-          return;
-        }
-        setProbeError(
-          err instanceof Error ? err.message : "Failed to load your session.",
-        );
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [router, setUser, clearUser]);
+    if (status === "unauthenticated") router.replace("/");
+  }, [status, router]);
 
   async function handleLogout() {
-    try {
-      await authApi.logout();
-    } finally {
-      clearUser();
-      router.replace("/");
-    }
+    await logout();
+    router.replace("/");
   }
 
-  if (probeError && !user) {
+  if (status === "error") {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#edfeee] px-4">
         <div className="max-w-sm rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {probeError}
+          {error ?? "Failed to load your session."}
         </div>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            clearUser();
+            probe();
+          }}
           className="rounded-md border border-[#101f15]/15 bg-white px-3 py-1.5 text-sm font-medium text-[#101f15] hover:bg-[#101f15]/5"
         >
           Retry
@@ -91,7 +55,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!ready || !user) {
+  if (status !== "authenticated" || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#edfeee]">
         <p className="text-sm text-[#101f15]/60">Loading…</p>
