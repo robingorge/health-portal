@@ -33,6 +33,9 @@ export const patientService = {
   },
 
   async update(id: string, data: UpdatePatientDto): Promise<PatientDto | null> {
+    const current = await patientRepository.findById(id);
+    if (!current) return null;
+
     if (data.email) {
       const existing = await patientRepository.findByEmail(data.email);
       if (existing && existing.id !== id) {
