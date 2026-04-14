@@ -40,6 +40,7 @@ export default function PatientDetailPage() {
   const [editingAppt, setEditingAppt] = useState<AppointmentDto | null>(null);
   const [creatingRx, setCreatingRx] = useState(false);
   const [editingRx, setEditingRx] = useState<PrescriptionDto | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -89,8 +90,13 @@ export default function PatientDetailPage() {
 
   async function removeAppt(appt: AppointmentDto) {
     if (!confirm(`Delete appointment "${appt.description}"?`)) return;
-    await appointmentApi.remove(appt.id);
-    await load();
+    setActionError(null);
+    try {
+      await appointmentApi.remove(appt.id);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete appointment.");
+    }
   }
 
   async function createRx(data: CreatePrescriptionDto) {
@@ -108,8 +114,13 @@ export default function PatientDetailPage() {
 
   async function removeRx(rx: PrescriptionDto) {
     if (!confirm(`Delete prescription "${rx.medicationName}"?`)) return;
-    await prescriptionApi.remove(rx.id);
-    await load();
+    setActionError(null);
+    try {
+      await prescriptionApi.remove(rx.id);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete prescription.");
+    }
   }
 
   if (error) {
@@ -132,6 +143,12 @@ export default function PatientDetailPage() {
       <div>
         <Link href="/admin" className="text-sm text-[#101f15]/60 hover:underline">← Back</Link>
       </div>
+
+      {actionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
 
       <section className="rounded-xl border border-[#101f15]/10 bg-white p-6">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
